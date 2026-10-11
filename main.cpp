@@ -5,7 +5,7 @@
 #include "priority.h"
 #include "mlfq.h"
 #include "simulator.h"
-
+#include "testsets.h"
 #include <iostream>
 #include <iomanip>
 #include <vector>
@@ -108,12 +108,21 @@ int main() {
     for (auto& s : scheds) printResult(runSimulation(*s));
   }
 
-  std::cout << "\n";
+    std::cout << "\n";
   {
     auto set = makeTestSet();
     RrScheduler rr(set, 2);
     SimResult r = runSimulation(rr);
     printGantt(r);
+  }
+
+  // Задание 8: таблица по процессам для RR (q=2)
+  {
+    auto set = makeTestSet();
+    RrScheduler rr(set, 2);
+    SimResult r = runSimulation(rr);
+    std::cout << "\nПо процессам, RR (q=2):\n";
+    printProcessTable(rr.processes());
   }
 
   return 0;

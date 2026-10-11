@@ -9,6 +9,7 @@ add_executable(donstu_os_cpp_scheduler main.cpp
     process.h
     scheduler.h
     fcfs.h
+ testsets.h
     sjf.h
     srtn.h
     rr.h
