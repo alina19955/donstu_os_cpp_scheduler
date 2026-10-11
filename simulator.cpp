@@ -20,24 +20,17 @@ SimResult runSimulation(Scheduler& sched, std::uint64_t maxTicks) {
       }
     }
 
-    // 2. Накапливаем waitingTime для процессов в READY
-    for (auto& p : procs) {
-      if (p.state == ProcessState::READY) {
-        p.waitingTime++;
-      }
-    }
-
-    // 3. Все ли завершены?
+    // 2. Все ли завершены?
     bool allDone = true;
     for (auto& p : procs) {
       if (p.state != ProcessState::TERMINATED) { allDone = false; break; }
     }
     if (allDone) break;
 
-    // 4. Планировщик обновляет очереди
+    // 3. Планировщик обновляет очереди
     sched.onTick(tick);
 
-    // 5. Вытеснение
+    // 4. Вытеснение
     if (currentPid != -1 && sched.shouldPreempt(currentPid, tick)) {
       Process* p = sched.find(currentPid);
       if (p && !p->isFinished() && p->state == ProcessState::RUNNING) {
@@ -47,13 +40,15 @@ SimResult runSimulation(Scheduler& sched, std::uint64_t maxTicks) {
       currentPid = -1;
     }
 
-    // 6. Выбор нового процесса
+    // 5. Выбор нового процесса
     if (currentPid == -1) {
       currentPid = sched.pickNext(tick);
       if (currentPid != -1) {
         Process* p = sched.find(currentPid);
         if (p) {
-          if (p->state == ProcessState::READY && p->startTime == 0) {
+          // Ошибка 1 исправлена: проверяем флаг started, а не startTime == 0
+          if (!p->started) {
+            p->started = true;
             p->startTime = tick;
             p->responseTime = tick - p->arrivalTime;
           }
@@ -64,7 +59,7 @@ SimResult runSimulation(Scheduler& sched, std::uint64_t maxTicks) {
       }
     }
 
-    // 7. Выполняем один такт
+    // 6. Выполняем один такт
     int ranPid = -1;
     if (currentPid != -1) {
       Process* p = sched.find(currentPid);
@@ -81,7 +76,8 @@ SimResult runSimulation(Scheduler& sched, std::uint64_t maxTicks) {
         if (p->nextIoIndex < p->ioBlocks.size() &&
             p->executedTicks == p->ioBlocks[p->nextIoIndex].atTick) {
           p->state = ProcessState::WAITING;
-          p->ioReturnTick = tick + p->ioBlocks[p->nextIoIndex].duration;
+          // Ошибка 3 исправлена: добавлена +1
+          p->ioReturnTick = tick + 1 + p->ioBlocks[p->nextIoIndex].duration;
           p->ioWaitTime += p->ioBlocks[p->nextIoIndex].duration;
           p->nextIoIndex++;
           sched.onProcessBlocked(currentPid, tick);
@@ -94,6 +90,13 @@ SimResult runSimulation(Scheduler& sched, std::uint64_t maxTicks) {
           sched.onProcessFinished(currentPid, tick);
           currentPid = -1;
         }
+      }
+    }
+
+    // 7. Все, кто остался в READY, ждали этот такт (Ошибка 2 исправлена)
+    for (auto& p : procs) {
+      if (p.state == ProcessState::READY) {
+        p.waitingTime++;
       }
     }
 
