@@ -1,3 +1,6 @@
+#include "hrrn.h"
+#include <functional>
+#include <memory>
 #include "fcfs.h"
 #include "sjf.h"
 #include "srtn.h"
@@ -117,6 +120,52 @@ std::vector<Process> makeConvoySet() {
   add(3, "IO2",  2,  6, 1, {{1, 4}, {2, 4}, {3, 4}, {4, 4}, {5, 4}});
   add(4, "CPU2", 3, 12, 3);
   return procs;
+}
+
+// Фабрика планировщиков: по набору процессов создаёт нужный объект
+using Factory = std::function<std::unique_ptr<Scheduler>(const std::vector<Process>&)>;
+
+template <class T, class... Args>
+Factory factory(Args... args) {
+  return [args...](const std::vector<Process>& s) {
+    return std::make_unique<T>(s, args...);
+  };
+}
+
+// Запуск сравнения для одной метрики
+void runExperiment10(const std::string& metricName,
+                     std::function<double(const SimResult&)> getMetric) {
+  std::vector<std::pair<std::string, Factory>> algos = {
+    {"FCFS",        factory<FcfsScheduler>()},
+    {"SJF",         factory<SjfScheduler>()},
+    {"SRTN",        factory<SrtnScheduler>()},
+    {"HRRN",        factory<HrrnScheduler>()},
+    {"RR q=4",      factory<RrScheduler>(4)},
+    {"Prio",        factory<PriorityScheduler>(false, false)},
+    {"Prio+aging",  factory<PriorityScheduler>(true, true)},
+    {"MLFQ",        factory<MlfqScheduler>()},
+  };
+
+  const int sizes[5] = {12, 14, 16, 18, 20};
+
+  std::cout << "\n" << metricName << "\n";
+  std::cout << std::left << std::setw(14) << "Algorithm" << std::right;
+  for (int i = 1; i <= 5; ++i) std::cout << std::setw(9) << "set " + std::to_string(i);
+  std::cout << std::setw(9) << "average" << "\n";
+
+  for (auto& [label, make] : algos) {
+    std::cout << std::left << std::setw(14) << label << std::right;
+    double sum = 0;
+    for (unsigned seed = 1; seed <= 5; ++seed) {
+      auto set = makeRandomSet(seed, sizes[seed - 1]);
+      auto sched = make(set);
+      SimResult r = runSimulation(*sched);
+      double v = getMetric(r);
+      sum += v;
+      std::cout << std::setw(9) << std::fixed << std::setprecision(2) << v;
+    }
+    std::cout << std::setw(9) << sum / 5 << "\n";
+  }
 }
 int main() {
   std::cout << "Case 1: CPU-bound\n";
@@ -271,5 +320,23 @@ int main() {
       printProcessTable(s.processes());
     }
   }
+  // Задание 10: генерация и сохранение 5 наборов
+  {
+    const int sizes[5] = {12, 14, 16, 18, 20};
+    for (unsigned seed = 1; seed <= 5; ++seed) {
+      saveSet("sets/set" + std::to_string(seed) + ".txt",
+              makeRandomSet(seed, sizes[seed - 1]));
+    }
+    std::cout << "\nСохранено 5 наборов в sets/\n";
+  }
+  // Задание 10: четыре сводные таблицы
+  runExperiment10("Average waiting time",
+                  [](const SimResult& r) { return r.avgWaiting; });
+  runExperiment10("Average turnaround time",
+                  [](const SimResult& r) { return r.avgTurnaround; });
+  runExperiment10("Average response time",
+                  [](const SimResult& r) { return r.avgResponse; });
+  runExperiment10("CPU utilization",
+                  [](const SimResult& r) { return r.cpuUtilization; });
   return 0;
 }
