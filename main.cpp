@@ -338,5 +338,25 @@ int main() {
                   [](const SimResult& r) { return r.avgResponse; });
   runExperiment10("CPU utilization",
                   [](const SimResult& r) { return r.cpuUtilization; });
+
+  // Задание 7: многоядерный режим
+  {
+    auto set = makeTestSet();
+    std::cout << "\n=== Задание 7: многоядерный режим ===\n";
+    for (int cores : {1, 2, 4}) {
+      SjfScheduler s(set);
+      SimResult r = runSimulationMulti(s, cores);
+      std::cout << "SJF x" << cores << " | ";
+      printResult(r);
+      for (int c = 0; c < cores; ++c) {
+        std::cout << "  core " << c << ": ";
+        for (auto& [pid, span] : r.coreGantt[c]) {
+          if (pid == -1) std::cout << "idle[" << span.first << "-" << span.second << ") ";
+          else std::cout << "P" << pid << "[" << span.first << "-" << span.second << ") ";
+        }
+        std::cout << "\n";
+      }
+    }
+  }
   return 0;
 }

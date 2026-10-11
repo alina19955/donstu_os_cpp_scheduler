@@ -18,6 +18,10 @@ hrrn.h
     mlfq.h
     simulator.h
     simulator.cpp
+    simulator.h
+    simulator.cpp
+    multicore.cpp
+    testsets.h
 )
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(donstu_os_cpp_scheduler PRIVATE -Wall -Wextra)
