@@ -10,7 +10,7 @@
 #include <iomanip>
 #include <vector>
 #include <memory>
-
+#include "hrrn.h"
 std::vector<Process> makeTestSet() {
   std::vector<Process> procs;
   auto add = [&](int pid, const std::string& name, std::uint64_t arrival,
@@ -77,7 +77,25 @@ void printGantt(const SimResult& r) {
   }
   std::cout << "\n";
 }
-
+std::vector<Process> makeHrrnTestSet() {
+  std::vector<Process> procs;
+  auto add = [&](int pid, const std::string& name, std::uint64_t arrival,
+                 std::uint64_t burst, int priority) {
+    Process p;
+    p.pid = pid; p.name = name;
+    p.arrivalTime = arrival;
+    p.burstTime = burst;
+    p.remainingTime = burst;
+    p.priority = priority;
+    p.dynamicPriority = priority;
+    procs.push_back(p);
+  };
+  add(1, "A",  0, 4, 1);
+  add(2, "L",  1, 6, 1);
+  add(3, "S1", 4, 2, 1);
+  add(4, "S2", 5, 1, 1);
+  return procs;
+}
 int main() {
   std::cout << "Case 1: CPU-bound\n";
   {
@@ -135,6 +153,21 @@ int main() {
     FcfsScheduler a(set), b(loaded);
     printResult(runSimulation(a));
     printResult(runSimulation(b));
+  }
+  // Задание 3: HRRN vs SJF
+  {
+    auto set = makeHrrnTestSet();
+    std::cout << "\n=== Задание 3: HRRN vs SJF ===\n";
+
+    SjfScheduler sjf(set);
+    SimResult rS = runSimulation(sjf);
+    printResult(rS);
+    printGantt(rS);
+
+    HrrnScheduler hrrn(set);
+    SimResult rH = runSimulation(hrrn);
+    printResult(rH);
+    printGantt(rH);
   }
   return 0;
 }
