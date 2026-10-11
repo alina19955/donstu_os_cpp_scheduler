@@ -16,8 +16,15 @@ struct SimResult {
   int contextSwitches = 0;
   int throughput = 0;
   std::uint64_t totalTicks = 0;
+
+  // Задание 4: накладные расходы на переключение контекста
+  std::uint64_t overheadTicks = 0;
+  double overheadPercent = 0;
+
   std::vector<std::pair<int, std::pair<std::uint64_t, std::uint64_t>>> gantt;
 };
 
 // Прогон одного планировщика
-SimResult runSimulation(Scheduler& sched, std::uint64_t maxTicks = 100000);
+// switchCost — сколько тактов тратится на переключение контекста (по умолчанию 0)
+SimResult runSimulation(Scheduler& sched, std::uint64_t maxTicks = 100000,
+                        std::uint64_t switchCost = 0);

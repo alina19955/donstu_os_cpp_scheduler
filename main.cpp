@@ -73,6 +73,7 @@ void printGantt(const SimResult& r) {
   for (auto& [pid, span] : r.gantt) {
     std::cout << "  [" << span.first << "-" << span.second << ") ";
     if (pid == -1) std::cout << "IDLE\n";
+ else if (pid == -2) std::cout << "CS\n";
     else std::cout << "P" << pid << "\n";
   }
   std::cout << "\n";
@@ -168,6 +169,28 @@ int main() {
     SimResult rH = runSimulation(hrrn);
     printResult(rH);
     printGantt(rH);
+  }
+  // Задание 4: RR с разными квантами при стоимости переключения 0 и 1
+  {
+    auto set = makeTestSet();
+    std::cout << "\n=== Задание 4: RR, switchCost=0 vs 1 ===\n";
+    std::cout << "q  | wait0  turn0  wait1  turn1  CPU1%  overhead1%\n";
+    for (std::uint64_t q : {1, 2, 4, 8}) {
+      RrScheduler rr0(set, q);
+      SimResult r0 = runSimulation(rr0, 100000, 0);
+
+      RrScheduler rr1(set, q);
+      SimResult r1 = runSimulation(rr1, 100000, 1);
+
+      std::cout << std::setw(2) << q
+                << " | " << std::fixed << std::setprecision(2)
+                << std::setw(6) << r0.avgWaiting
+                << " " << std::setw(6) << r0.avgTurnaround
+                << " " << std::setw(6) << r1.avgWaiting
+                << " " << std::setw(6) << r1.avgTurnaround
+                << " " << std::setw(6) << r1.cpuUtilization
+                << " " << std::setw(8) << r1.overheadPercent << "\n";
+    }
   }
   return 0;
 }

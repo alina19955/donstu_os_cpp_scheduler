@@ -1,6 +1,7 @@
 #include "simulator.h"
 
-SimResult runSimulation(Scheduler& sched, std::uint64_t maxTicks) {
+SimResult runSimulation(Scheduler& sched, std::uint64_t maxTicks,
+                        std::uint64_t switchCost) {
   SimResult res;
   res.algorithm = sched.name();
 
@@ -8,6 +9,10 @@ SimResult runSimulation(Scheduler& sched, std::uint64_t maxTicks) {
   int currentPid = -1;
   int prevPid = -1;
   std::uint64_t busyTicks = 0;
+
+  // Задание 4: сколько тактов осталось потратить на переключение контекста
+  std::uint64_t switchLeft = 0;
+  std::uint64_t overheadTicks = 0;
 
   auto& procs = sched.processes();
 
@@ -46,7 +51,6 @@ SimResult runSimulation(Scheduler& sched, std::uint64_t maxTicks) {
       if (currentPid != -1) {
         Process* p = sched.find(currentPid);
         if (p) {
-          // Ошибка 1 исправлена: проверяем флаг started, а не startTime == 0
           if (!p->started) {
             p->started = true;
             p->startTime = tick;
@@ -54,17 +58,26 @@ SimResult runSimulation(Scheduler& sched, std::uint64_t maxTicks) {
           }
           p->state = ProcessState::RUNNING;
           p->contextSwitches++;
-          if (prevPid != currentPid) res.contextSwitches++;
+          // Задание 4: при смене процесса тратим такты на переключение
+          if (prevPid != currentPid) {
+            res.contextSwitches++;
+            switchLeft = switchCost;
+          }
         }
       }
     }
 
-    // 6. Выполняем один такт
+    // 6. Выполняем один такт (или тратим его на переключение контекста)
     int ranPid = -1;
-    if (currentPid != -1) {
+    bool overheadTick = (currentPid != -1 && switchLeft > 0);
+
+    if (overheadTick) {
+      // Такт ушёл на переключение контекста: никто не выполняется
+      switchLeft--;
+      overheadTicks++;
+    } else if (currentPid != -1) {
       Process* p = sched.find(currentPid);
       if (p) {
-        // запомним, кто реально выполнялся в этом такте
         ranPid = currentPid;
 
         p->remainingTime--;
@@ -76,7 +89,6 @@ SimResult runSimulation(Scheduler& sched, std::uint64_t maxTicks) {
         if (p->nextIoIndex < p->ioBlocks.size() &&
             p->executedTicks == p->ioBlocks[p->nextIoIndex].atTick) {
           p->state = ProcessState::WAITING;
-          // Ошибка 3 исправлена: добавлена +1
           p->ioReturnTick = tick + 1 + p->ioBlocks[p->nextIoIndex].duration;
           p->ioWaitTime += p->ioBlocks[p->nextIoIndex].duration;
           p->nextIoIndex++;
@@ -93,15 +105,22 @@ SimResult runSimulation(Scheduler& sched, std::uint64_t maxTicks) {
       }
     }
 
-    // 7. Все, кто остался в READY, ждали этот такт (Ошибка 2 исправлена)
+    // 7. Все, кто остался в READY, ждали этот такт
     for (auto& p : procs) {
       if (p.state == ProcessState::READY) {
         p.waitingTime++;
       }
     }
 
-    // 8. Запись в диаграмму Ганта (по фактически выполнявшемуся процессу)
-    if (ranPid != -1) {
+    // 8. Запись в диаграмму Ганта
+    if (overheadTick) {
+      // Такт переключения контекста — записываем как -2
+      if (!res.gantt.empty() && res.gantt.back().first == -2) {
+        res.gantt.back().second.second = tick + 1;
+      } else {
+        res.gantt.push_back({-2, {tick, tick + 1}});
+      }
+    } else if (ranPid != -1) {
       if (!res.gantt.empty() && res.gantt.back().first == ranPid) {
         res.gantt.back().second.second = tick + 1;
       } else {
@@ -122,7 +141,8 @@ SimResult runSimulation(Scheduler& sched, std::uint64_t maxTicks) {
       }
     }
 
-    prevPid = ranPid;
+    // Задание 4: prevPid обновляется с учётом переключения
+    prevPid = overheadTick ? currentPid : ranPid;
     tick++;
   }
 
@@ -145,6 +165,10 @@ SimResult runSimulation(Scheduler& sched, std::uint64_t maxTicks) {
   res.totalTicks = tick;
   res.cpuUtilization = tick > 0 ? 100.0 * busyTicks / tick : 0.0;
   res.throughput = finished;
+
+  // Задание 4: итоги по накладным расходам
+  res.overheadTicks = overheadTicks;
+  res.overheadPercent = tick > 0 ? 100.0 * overheadTicks / tick : 0.0;
 
   return res;
 }
