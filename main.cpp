@@ -1,3 +1,4 @@
+#include "edf.h"
 #include "hrrn.h"
 #include <functional>
 #include <memory>
@@ -166,6 +167,39 @@ void runExperiment10(const std::string& metricName,
     }
     std::cout << std::setw(9) << sum / 5 << "\n";
   }
+}
+
+void printDeadlines(const std::vector<Process>& procs) {
+  for (const auto& p : procs) {
+    std::cout << p.name << ": finish=" << p.finishTime
+              << " deadline=" << p.deadline
+              << (p.finishTime <= p.deadline ? " OK" : " MISSED") << "\n";
+  }
+}
+
+std::vector<Process> makeDeadlineSet(bool feasible) {
+  std::vector<Process> v;
+  auto add = [&](int pid, const std::string& name, std::uint64_t arrival,
+                 std::uint64_t burst, std::uint64_t deadline) {
+    Process p;
+    p.pid = pid; p.name = name;
+    p.arrivalTime = arrival;
+    p.burstTime = burst;
+    p.remainingTime = burst;
+    p.deadline = deadline;
+    v.push_back(p);
+  };
+  if (feasible) {
+    add(1, "E1", 0, 3, 7);
+    add(2, "E2", 1, 2, 4);
+    add(3, "E3", 2, 2, 9);
+    add(4, "E4", 4, 3, 10);
+  } else {
+    add(1, "F1", 0, 4, 5);
+    add(2, "F2", 1, 3, 5);
+    add(3, "F3", 2, 2, 6);
+  }
+  return v;
 }
 int main() {
   std::cout << "Case 1: CPU-bound\n";
@@ -356,6 +390,30 @@ int main() {
         }
         std::cout << "\n";
       }
+    }
+  }
+  // Задание 12: EDF
+  {
+    std::cout << "\n=== Задание 12: EDF ===\n";
+
+    std::cout << "\nНабор E (укладывается):\n";
+    {
+      auto set = makeDeadlineSet(true);
+      EdfScheduler s(set);
+      SimResult r = runSimulation(s);
+      printResult(r);
+      printGantt(r);
+      printDeadlines(s.processes());
+    }
+
+    std::cout << "\nНабор F (не укладывается):\n";
+    {
+      auto set = makeDeadlineSet(false);
+      EdfScheduler s(set);
+      SimResult r = runSimulation(s);
+      printResult(r);
+      printGantt(r);
+      printDeadlines(s.processes());
     }
   }
   return 0;
