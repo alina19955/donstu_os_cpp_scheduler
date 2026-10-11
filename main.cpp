@@ -192,5 +192,22 @@ int main() {
                 << " " << std::setw(8) << r1.overheadPercent << "\n";
     }
   }
+  // Задание 5: влияние кванта в RR
+  {
+    auto set = makeTestSet();
+    std::cout << "\n=== Задание 5: влияние кванта в RR ===\n";
+    std::cout << "q  wait   turn   resp   CS\n";
+    for (std::uint64_t q : {1, 2, 4, 8, 16}) {
+      RrScheduler rr(set, q);
+      SimResult r = runSimulation(rr);
+      std::cout << std::setw(2) << q << " "
+                << std::fixed << std::setprecision(2)
+                << std::setw(6) << r.avgWaiting << " "
+                << std::setw(6) << r.avgTurnaround << " "
+                << std::setw(6) << r.avgResponse << " "
+                << std::setw(3) << r.contextSwitches << " "
+                << std::string(r.contextSwitches, '#') << "\n";
+    }
+  }
   return 0;
 }
